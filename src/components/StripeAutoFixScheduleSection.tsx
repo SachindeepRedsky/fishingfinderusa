@@ -27,7 +27,7 @@ import {
 } from '@/lib/stripe';
 
 const DEFAULT_WEBHOOK_URL =
-  'https://erbligiwkdfwxkhvwepw.functions.databasepad.com/stripe-webhook';
+  'https://xybqfeyhvifnstkhooba.supabase.co/functions/v1/stripe-webhook';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 interface ScheduleConfig {

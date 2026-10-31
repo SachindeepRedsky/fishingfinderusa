@@ -41,6 +41,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
         password,
       });
 
+      console.log('Login response:', data, error);
       if (error) throw error;
 
       if (data.user) {

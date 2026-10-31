@@ -76,7 +76,7 @@ interface CreateRecurringPricesResponse {
 
 
 const DEFAULT_WEBHOOK_URL =
-  'https://erbligiwkdfwxkhvwepw.functions.databasepad.com/stripe-webhook';
+  'https://xybqfeyhvifnstkhooba.supabase.co/functions/v1/stripe-webhook';
 
 function severityIcon(sev: Issue['severity']) {
   if (sev === 'error') return <XCircle className="h-5 w-5 text-red-600 shrink-0" />;

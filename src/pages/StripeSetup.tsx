@@ -742,7 +742,7 @@ function SetupStatusCard({
 
   const okCount = items.filter((i) => i.ok).length;
   const allOk = okCount === items.length;
-
+console.log('SetupStatusCard items:', items);
   return (
     <Card
       className={`mb-6 border-2 ${
