@@ -745,6 +745,40 @@ export function isSubscriptionEntitled(subscription: SubscriptionPeriod | null |
   return Number.isFinite(periodEnd) && periodEnd > Date.now();
 }
 
+const PRO_ACCESS_CACHE_TTL = 10 * 60 * 1000;
+const proAccessCache = new Map<string, { hasAccess: boolean; checkedAt: number }>();
+const proAccessChecks = new Map<string, Promise<boolean>>();
+
+export async function getCachedUserProAccess(userId: string): Promise<boolean> {
+  const cached = proAccessCache.get(userId);
+  if (cached && Date.now() - cached.checkedAt < PRO_ACCESS_CACHE_TTL) {
+    return cached.hasAccess;
+  }
+
+  let check = proAccessChecks.get(userId);
+  if (!check) {
+    check = (async () => {
+      await expireUserSubscriptions(userId);
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('status, current_period_end')
+        .eq('user_id', userId)
+        .in('status', ['active', 'trialing']);
+      if (error) throw new Error(error.message);
+      return (data || []).some(isSubscriptionEntitled);
+    })();
+    proAccessChecks.set(userId, check);
+  }
+
+  try {
+    const hasAccess = await check;
+    proAccessCache.set(userId, { hasAccess, checkedAt: Date.now() });
+    return hasAccess;
+  } finally {
+    if (proAccessChecks.get(userId) === check) proAccessChecks.delete(userId);
+  }
+}
+
 export async function getMembershipUsers(): Promise<MembershipCandidate[]> {
   const [{ data: profiles, error: profilesError }, { data: subscriptions, error: subscriptionsError }] = await Promise.all([
     supabase.from('profiles').select('id, email, display_name').order('email'),

@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { expireUserSubscriptions, isSubscriptionEntitled } from '@/data/fishingSpots';
+import { getCachedUserProAccess } from '@/data/fishingSpots';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -41,14 +41,8 @@ export function useProAccess() {
       }
 
       try {
-        await expireUserSubscriptions(userId);
-        const { data, error } = await supabase
-          .from('subscriptions')
-          .select('status, current_period_end')
-          .eq('user_id', userId)
-          .in('status', ['active', 'trialing']);
-        if (error) throw error;
-        if (mounted) setIsProUser((data || []).some(isSubscriptionEntitled));
+        const hasAccess = await getCachedUserProAccess(userId);
+        if (mounted) setIsProUser(hasAccess);
       } catch (error) {
         console.error('Unable to verify Pro access:', error);
         if (mounted) setIsProUser(false);
@@ -66,8 +60,8 @@ export function useProAccess() {
       void checkAccess(data.session?.user.id);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setChecked(false);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'TOKEN_REFRESHED') return;
       void checkAccess(session?.user.id);
     });
 

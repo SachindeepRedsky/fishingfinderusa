@@ -11,7 +11,7 @@ import { Search, MapPin, Fish, DollarSign, Waves, TreePine, Anchor, Building, Dr
 
 
 import { supabase } from '@/lib/supabase';
-import { expireUserSubscriptions, isSubscriptionEntitled } from '@/data/fishingSpots';
+import { getCachedUserProAccess } from '@/data/fishingSpots';
 import { isIosMedianApp, isAndroidMedianApp, IapPlan, requestAndroidGooglePlayIap } from '@/lib/utils';
 import AuthModal from '@/components/AuthModal';
 import SubscriptionModal, { AndroidIapModal, AppleIapModal } from '@/components/SubscriptionModal';
@@ -265,25 +265,14 @@ const AppLayout: React.FC = () => {
   // stripe-webhook edge function keeps in sync. 'active' or 'trialing' = Pro.
   const checkSubscription = async (userId: string) => {
     try {
-      await expireUserSubscriptions(userId);
+      const hasProAccess = await getCachedUserProAccess(userId);
+      setIsProUser(hasProAccess);
+      if (!hasProAccess) setShowFavoritesOnly(false);
     } catch (error) {
-      console.error('Unable to expire ended subscriptions:', error);
-    }
-
-    const { data, error } = await supabase
-      .from('subscriptions')
-      .select('status, plan, current_period_end')
-      .eq('user_id', userId)
-      .in('status', ['active', 'trialing'])
-      .order('updated_at', { ascending: false })
-    if (error) {
-      console.error('Unable to check subscription status:', error.message);
+      console.error('Unable to check subscription status:', error);
       setIsProUser(false);
       return;
     }
-    const hasProAccess = (data || []).some(isSubscriptionEntitled);
-    setIsProUser(hasProAccess);
-    if (!hasProAccess) setShowFavoritesOnly(false);
   };
 
 
@@ -297,11 +286,11 @@ const AppLayout: React.FC = () => {
     let pollTimer: number | undefined;
 
     const startPolling = (userId: string) => {
-      // Poll every 5s for subscription status changes (covers webhook upserts)
+      // Recheck once the shared Pro-access cache expires.
       if (pollTimer) window.clearInterval(pollTimer);
       pollTimer = window.setInterval(() => {
         checkSubscription(userId);
-      }, 5000);
+      }, 10 * 60 * 1000);
     };
 
     const stopPolling = () => {
